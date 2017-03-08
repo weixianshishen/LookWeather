@@ -8,7 +8,10 @@ import example.com.lookweather.R;
 import example.com.lookweather.util.SPUtil;
 
 public class MainActivity extends AppCompatActivity {
-
+    /**
+     * RxWeather分支
+     * @param savedInstanceState
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
