@@ -16,23 +16,22 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
-
-import java.io.IOException;
+import com.google.gson.Gson;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import example.com.lookweather.R;
-import example.com.lookweather.gson.Forecast;
-import example.com.lookweather.gson.Weather;
+import example.com.lookweather.gson.WeatherApi;
 import example.com.lookweather.service.AutoUpdateService;
 import example.com.lookweather.util.HttpUtil;
+import example.com.lookweather.util.RetrofitSingleton;
 import example.com.lookweather.util.SPUtil;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
+import example.com.lookweather.util.SimpleSubscribe;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class WeatherActivity extends AppCompatActivity {
 
@@ -84,29 +83,18 @@ public class WeatherActivity extends AppCompatActivity {
         String weatherString = SPUtil.getInstance(this).getStringValue("weather");
         if (weatherString != null) {
             // 有缓存时直接解析天气数据
-            Weather weather = HttpUtil.handleWeatherResponse(weatherString);
-            mWeatherId = weather.basic.weatherId;
-            showWeatherInfo(weather);
+            WeatherApi.HeWeatherEntity weatherEntity = HttpUtil.handleWeatherResponse(weatherString);
+            showWeatherInfo(weatherEntity);
+            mWeatherId = weatherEntity.getBasic().getId();
         } else {
             // 无缓存时去服务器查询天气
             mWeatherId = getIntent().getStringExtra("weather_id");
-            Log.i("feng", "ID" + mWeatherId);
             mWeatherLayout.setVisibility(View.INVISIBLE);
-            requestWeather(mWeatherId);
+            fetchDataByNetWork(mWeatherId);
         }
 
-        mSwipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                requestWeather(mWeatherId);
-            }
-        });
-        mNavButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mDrawerLayout.openDrawer(GravityCompat.START);
-            }
-        });
+        mSwipeRefresh.setOnRefreshListener(() -> fetchDataByNetWork(mWeatherId));
+        mNavButton.setOnClickListener(view -> mDrawerLayout.openDrawer(GravityCompat.START));
 
         String bingPic = SPUtil.getInstance(this).getStringValue("bing_pic");
         if (bingPic != null) {
@@ -118,102 +106,76 @@ public class WeatherActivity extends AppCompatActivity {
     }
 
     /**
-     * 根据天气id请求城市天气信息。
-     */
-    public void requestWeather(final String weatherId) {
-        String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=3a0547c690da481895f7a1de0e7e1331";
-        HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String responseText = response.body().string();
-                final Weather weather = HttpUtil.handleWeatherResponse(responseText);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (weather != null && "ok".equals(weather.status)) {
-                            SPUtil.getInstance(WeatherActivity.this).putValue("weather", responseText);
-                            showWeatherInfo(weather);
-                        } else {
-                            Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
-                        }
-                        mSwipeRefresh.setRefreshing(false);
-                    }
-                });
-            }
-
-            @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
-                        mSwipeRefresh.setRefreshing(false);
-                    }
-                });
-            }
-        });
-        loadBingPic();
-    }
-
-    /**
      * 加载必应每日一图
      */
     private void loadBingPic() {
-        String requestBingPic = "http://guolin.tech/api/bing_pic";
-        HttpUtil.sendOkHttpRequest(requestBingPic, new Callback() {
+        RetrofitSingleton.getInstance().fetchPic().enqueue(new Callback<String>() {
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String bingPic = response.body().string();
-                SPUtil.getInstance(WeatherActivity.this).putValue("bing_pic", bingPic);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Glide.with(WeatherActivity.this).load(bingPic).into(mBingPicImg);
-                    }
-                });
+            public void onResponse(Call<String> call, Response<String> response) {
+                String picUrl = response.body().toString();
+                Log.i("feng", "nani"+picUrl);
+                SPUtil.getInstance(WeatherActivity.this).putValue("bing_pic", picUrl);
+                Glide.with(WeatherActivity.this).load(picUrl).into(mBingPicImg);
             }
 
             @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
+            public void onFailure(Call<String> call, Throwable t) {
+
             }
         });
+
     }
 
+
+    private void fetchDataByNetWork(String weatherId) {
+        RetrofitSingleton.getInstance().fetchWeather(weatherId)
+                .subscribe(new SimpleSubscribe<WeatherApi.HeWeatherEntity>() {
+                    @Override
+                    public void onNext(WeatherApi.HeWeatherEntity heWeatherEntity) {
+                        showWeatherInfo(heWeatherEntity);
+                        String weather = new Gson().toJson(heWeatherEntity);
+                        SPUtil.getInstance(WeatherActivity.this).putValue("weather", weather);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        mSwipeRefresh.setRefreshing(false);
+                    }
+                });
+    }
 
     /**
      * 处理并展示Weather实体类中的数据。
      */
-    private void showWeatherInfo(Weather weather) {
-        String cityName = weather.basic.cityName;
-        String updateTime = weather.basic.update.updateTime.split(" ")[1];
-        String degree = weather.now.temperature + "℃";
-        String weatherInfo = weather.now.more.info;
+    private void showWeatherInfo(WeatherApi.HeWeatherEntity weather) {
+        String cityName = weather.getBasic().getCity();
+        String updateTime = weather.getBasic().getUpdate().getLoc().split(" ")[1];
+        String degree = weather.getNow().getTmp() + "℃";
+        String weatherInfo = weather.getNow().getCond().getTxt();
         mTitleCity.setText(cityName);
         mTitleUpdateTime.setText(updateTime);
         mDegreeText.setText(degree);
         mWeatherInfoText.setText(weatherInfo);
         mForecastLayout.removeAllViews();
-        for (Forecast forecast : weather.forecastList) {
+        for (WeatherApi.HeWeatherEntity.DailyForecastEntity forecast : weather.getDaily_forecast()) {
             View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, mForecastLayout, false);
             TextView dateText = (TextView) view.findViewById(R.id.date_text);
             TextView infoText = (TextView) view.findViewById(R.id.info_text);
             TextView maxText = (TextView) view.findViewById(R.id.max_text);
             TextView minText = (TextView) view.findViewById(R.id.min_text);
-            dateText.setText(forecast.date);
-            infoText.setText(forecast.more.info);
-            maxText.setText(forecast.temperature.max);
-            minText.setText(forecast.temperature.min);
+            dateText.setText(forecast.getDate());
+            infoText.setText(forecast.getCond().getTxt_d());
+            maxText.setText(forecast.getTmp().getMax());
+            minText.setText(forecast.getTmp().getMin());
             mForecastLayout.addView(view);
         }
-        if (weather.aqi != null) {
-            mAqiText.setText(weather.aqi.city.aqi);
-            mPm25Text.setText(weather.aqi.city.pm25);
+        if (weather.getAqi() != null) {
+            mAqiText.setText(weather.getAqi().getCity().getAqi());
+            mPm25Text.setText(weather.getAqi().getCity().getPm25());
         }
-        String comfort = "舒适度：" + weather.suggestion.comfort.info;
-        String carWash = "洗车指数：" + weather.suggestion.carWash.info;
-        String sport = "运行建议：" + weather.suggestion.sport.info;
+        String comfort = "舒适度：" + weather.getSuggestion().getComf().getTxt();
+        String carWash = "洗车指数：" + weather.getSuggestion().getCw().getTxt();
+        String sport = "运行建议：" + weather.getSuggestion().getSport().getTxt();
         mComfortText.setText(comfort);
         mCarWashText.setText(carWash);
         mSportText.setText(sport);

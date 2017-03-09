@@ -9,7 +9,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -115,43 +114,39 @@ public class ChoiceCityFragment extends Fragment {
         }
         queryProvinces();
 
-        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                if (currentLevel == LEVEL_PROVINCE) {
-                    selectedProvince = provinceList.get(i);
-                    queryCities();
-                } else if (currentLevel == LEVEL_CITY) {
-                    selectedCity = cityList.get(i);
-                    queryCountries();
-                } else if (currentLevel == LEVEL_COUNTY) {
-                    String weatherId = countyList.get(i).getWeatherId();
-                    if (getActivity() instanceof MainActivity) {
-                        Intent intent = new Intent(getActivity(), WeatherActivity.class);
-                        intent.putExtra("weather_id", weatherId);
-                        startActivity(intent);
-                        getActivity().finish();
-                    } else if (getActivity() instanceof WeatherActivity) {
-                        WeatherActivity activity = (WeatherActivity) getActivity();
-                        activity.mDrawerLayout.closeDrawers();
-                        activity.mSwipeRefresh.setRefreshing(true);
-                        activity.requestWeather(weatherId);
-                    }
+
+        mListView.setOnItemClickListener((adapterView, view, i, l) -> {
+            if (currentLevel == LEVEL_PROVINCE) {
+                selectedProvince = provinceList.get(i);
+                queryCities();
+            } else if (currentLevel == LEVEL_CITY) {
+                selectedCity = cityList.get(i);
+                queryCountries();
+            } else if (currentLevel == LEVEL_COUNTY) {
+                String weatherId = countyList.get(i).getWeatherId();
+                if (getActivity() instanceof MainActivity) {
+                    Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                    intent.putExtra("weather_id", weatherId);
+                    startActivity(intent);
+                    getActivity().finish();
+                } else if (getActivity() instanceof WeatherActivity) {
+                    WeatherActivity activity = (WeatherActivity) getActivity();
+                    activity.mDrawerLayout.closeDrawers();
+                    activity.mSwipeRefresh.setRefreshing(true);
+                    //                        activity.requestWeather(weatherId);
                 }
             }
         });
-        mBtnBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (currentLevel == LEVEL_COUNTY) {
-                    queryCities();
-                } else if (currentLevel == LEVEL_CITY) {
-                    queryProvinces();
-                }
+        mBtnBack.setOnClickListener(view -> {
+            if (currentLevel == LEVEL_COUNTY) {
+                queryCities();
+            } else if (currentLevel == LEVEL_CITY) {
+                queryProvinces();
             }
         });
 
     }
+
 
     @Override
     public void onDestroyView() {
@@ -174,9 +169,11 @@ public class ChoiceCityFragment extends Fragment {
             currentLevel = LEVEL_PROVINCE;
         } else {
             queryFromServer(Constants.BASE_URL, "province");
+
         }
 
     }
+
 
     /**
      * 查询选中省内所有的市，优先从数据库查询，如果没有查询到再去服务器上查询。
@@ -217,6 +214,8 @@ public class ChoiceCityFragment extends Fragment {
             queryFromServer(Constants.BASE_URL + provinceCode + "/" + cityCode, "country");
         }
     }
+
+
 
     /**
      * 根据传入的地址和类型从服务器上查询省市县数据。

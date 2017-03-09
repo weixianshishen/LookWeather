@@ -9,7 +9,6 @@ import android.os.SystemClock;
 
 import java.io.IOException;
 
-import example.com.lookweather.gson.Weather;
 import example.com.lookweather.util.HttpUtil;
 import example.com.lookweather.util.SPUtil;
 import okhttp3.Call;
@@ -42,27 +41,27 @@ public class AutoUpdateService extends Service {
      */
     private void updateWeather() {
         String weatherString = SPUtil.getInstance(AutoUpdateService.this).getStringValue("weather");
-        if (weatherString != null) {
-            // 有缓存时直接解析天气数据
-            Weather weather = HttpUtil.handleWeatherResponse(weatherString);
-            String weatherId = weather.basic.weatherId;
-            String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=3a0547c690da481895f7a1de0e7e1331";
-            HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    String responseText = response.body().string();
-                    Weather weather = HttpUtil.handleWeatherResponse(responseText);
-                    if (weather != null && "ok".equals(weather.status)) {
-                        SPUtil.getInstance(AutoUpdateService.this).putValue("weather", responseText);
-                    }
-                }
-
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
+//        if (weatherString != null) {
+//            // 有缓存时直接解析天气数据
+////            Weather weather = HttpUtil.handleWeatherResponse(weatherString);
+////            String weatherId = weather.basic.weatherId;
+////            String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=3a0547c690da481895f7a1de0e7e1331";
+//            HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
+//                @Override
+//                public void onResponse(Call call, Response response) throws IOException {
+//                    String responseText = response.body().string();
+//                    Weather weather = HttpUtil.handleWeatherResponse(responseText);
+//                    if (weather != null && "ok".equals(weather.status)) {
+//                        SPUtil.getInstance(AutoUpdateService.this).putValue("weather", responseText);
+//                    }
+//                }
+//
+//                @Override
+//                public void onFailure(Call call, IOException e) {
+//                    e.printStackTrace();
+//                }
+//            });
+//        }
     }
 
     /**

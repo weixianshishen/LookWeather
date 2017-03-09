@@ -2,10 +2,7 @@ package example.com.lookweather.util;
 
 import com.google.gson.Gson;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import example.com.lookweather.gson.Weather;
+import example.com.lookweather.gson.WeatherApi;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -21,16 +18,9 @@ public class HttpUtil {
     /**
      * 将返回的JSON数据解析成Weather实体类
      */
-    public static Weather handleWeatherResponse(String response) {
-        try {
-            JSONObject jsonObject = new JSONObject(response);
-            JSONArray jsonArray = jsonObject.getJSONArray("HeWeather");
-            String weatherContent = jsonArray.getJSONObject(0).toString();
-            return new Gson().fromJson(weatherContent, Weather.class);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
+    public static WeatherApi.HeWeatherEntity handleWeatherResponse(String response) {
+
+        return new Gson().fromJson(response, WeatherApi.HeWeatherEntity.class);
     }
 
 }
